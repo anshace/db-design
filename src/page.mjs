@@ -108,12 +108,19 @@ code,.mono{font-family:var(--mono);font-size:.87em}
 .icon-btn:active{transform:scale(.94)}
 .sb-nav{flex:1;overflow-y:auto;padding:12px 10px 30px;font-size:13.2px}
 .sb-nav .grp{margin:14px 6px 5px;font:700 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);opacity:.75}
-.sb-nav a{display:flex;justify-content:space-between;align-items:baseline;gap:8px;color:var(--text);
+.sb-nav a{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text);
   padding:5px 10px;border-radius:var(--r-sm);transition:background .15s,color .15s}
+.sb-nav a .ic{flex:none;opacity:.55;margin-top:1px}
+.sb-nav a .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sb-nav a:hover{background:var(--surface2);text-decoration:none}
+.sb-nav a:hover .ic{opacity:.85}
 .sb-nav a .n{font:500 10.5px var(--mono);color:var(--muted)}
-.sb-nav a.sub{padding-left:24px;font-size:12px;font-family:var(--mono);color:var(--muted)}
+.sb-nav a.sub{padding-left:26px;font-size:12px;font-family:var(--mono);color:var(--muted)}
+.sb-nav a.sub .ic{width:11px;height:11px}
 .sb-nav a.active{background:var(--accent-soft);color:var(--accent-deep);font-weight:600}
+.sb-nav a.active .ic{opacity:1;color:var(--accent)}
+h2 .ic{color:var(--accent);opacity:.9}
+.fcard h4 .ic{color:var(--muted);flex:none}
 .expand-btn{position:fixed;left:10px;top:10px;z-index:55;background:var(--surface);border:1px solid var(--border);width:32px;height:32px;box-shadow:var(--shadow-sm)}
 .sb::-webkit-scrollbar,.sb-nav::-webkit-scrollbar{width:8px}
 

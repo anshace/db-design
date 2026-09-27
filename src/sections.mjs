@@ -1,6 +1,7 @@
 // sections.mjs — one builder per document section; each returns an HTML string.
 import { esc } from "./model.mjs";
 import { ddlForDomain } from "./ddl.mjs";
+import { icon, domainIcon, kindIcon } from "./icons.mjs";
 
 const E = esc;
 export const fid = (fqn) => "t-" + String(fqn).replace(/\./g, "-");
@@ -87,9 +88,9 @@ export function facets(model) {
     const trefs = (f.tables ?? []).map((t) => `<a class="chip mono" href="#${fid(t)}">${E(t)}</a>`).join("");
     if (trefs) rows.push(`<div class="frow"><span class="fl">tables</span><div>${trefs}</div></div>`);
     return `<div class="fcard" id="${E(String(f.id ?? f.title.toLowerCase().replace(/\W+/g, "-")))}">
-<h4><span class="fk-kind k-${E(kind)}">${E(kind)}</span>${E(String(f.title))}</h4>${rows.join("")}</div>`;
+<h4>${icon(kindIcon(kind), 15)}<span class="fk-kind k-${E(kind)}">${E(kind)}</span>${E(String(f.title))}</h4>${rows.join("")}</div>`;
   };
-  return `<section id="facets"><h2>Workload facets</h2>
+  return `<section id="facets"><h2>${icon("facets", 17)}Workload facets</h2>
 <p class="desc">What this database does that plain tables don't convey: queues, caches, journals,
 schedulers — and the external stores the design deliberately coexists with. Each card names the
 pattern and its failure mode.</p>
@@ -102,7 +103,7 @@ export function pools(model) {
   for (const p of model.pools) for (const k of Object.keys(p)) if (!keys.includes(k)) keys.push(k);
   const order = ["name", "durability", "pool", "sync_commit", "timeouts", "purpose"].filter((k) => keys.includes(k));
   const all = [...order, ...keys.filter((k) => !order.includes(k))];
-  return `<section id="pools"><h2>Connection pool classes</h2>
+  return `<section id="pools"><h2>${icon("pools", 17)}Connection pool classes</h2>
 <p class="desc">One factory, declared budgets. Every pool sets <code>application_name</code> so
 <code>pg_stat_activity</code> accounting works per class.</p>
 <table class="grid"><tr>${all.map((k) => `<th>${E(k.replace(/_/g, " "))}</th>`).join("")}</tr>
@@ -117,14 +118,14 @@ export function flows(model, flowSvgs) {
     if (d.nodes) return desc + figure(String(d.title), flowSvgs[i]);
     return desc + `<details class="ddl"><summary>${E(String(d.title))} (text source)</summary><pre>${E(String(d.source ?? ""))}</pre></details>`;
   }).join("");
-  return `<section id="flows"><h2>Flows &amp; diagrams</h2>${body}</section>`;
+  return `<section id="flows"><h2>${icon("flows", 17)}Flows &amp; diagrams</h2>${body}</section>`;
 }
 
 export function sections(model) {
   if (!model.sections.length) return "";
   return model.sections.map((s) => {
     const id = "sec-" + String(s.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    return `<section id="${E(id)}"><h2>${E(String(s.title))}</h2><div class="prose">${prose(String(s.body))}</div></section>`;
+    return `<section id="${E(id)}"><h2>${icon("notes", 17)}${E(String(s.title))}</h2><div class="prose">${prose(String(s.body))}</div></section>`;
   }).join("");
 }
 
@@ -152,7 +153,7 @@ export function domains(model, erSvgs) {
     }).join("");
     const ddl = ddlForDomain(model, d.id);
     return `<section class="domain" id="d-${E(d.id)}">
-<h2><span class="tag">${E(d.id)}</span>${E(d.title)}</h2>
+<h2>${icon(domainIcon(d.id), 17)}<span class="tag">${E(d.id)}</span>${E(d.title)}</h2>
 ${d.description ? `<p class="desc">${E(d.description)}</p>` : ""}
 ${figure("ER — " + d.title, erSvgs[d.id])}
 <h3>Catalog</h3><div class="cards">${cards}</div>
@@ -162,27 +163,27 @@ ${figure("ER — " + d.title, erSvgs[d.id])}
 }
 
 export function navTree(model) {
-  const a = (href, label, n = "", cls = "") =>
-    `<a href="${href}"${cls ? ` class="${cls}"` : ""}><span>${E(label)}</span>${n ? `<span class="n">${n}</span>` : ""}</a>`;
-  let html = a("#overview", "Overview");
+  const a = (href, label, n = "", cls = "", ic = null) =>
+    `<a href="${href}"${cls ? ` class="${cls}"` : ""}>${ic ? icon(ic, 13) : ""}<span class="lb">${E(label)}</span>${n ? `<span class="n">${n}</span>` : ""}</a>`;
+  let html = a("#overview", "Overview", "", "", "overview");
   const grp = (t) => `<div class="grp">${E(t)}</div>`;
   const extra = [];
-  if (model.facets.length) extra.push(a("#facets", "Workload facets", String(model.facets.length)));
-  if (model.pools.length) extra.push(a("#pools", "Connection pools", String(model.pools.length)));
-  if (model.diagrams.length) extra.push(a("#flows", "Flows", String(model.diagrams.length)));
+  if (model.facets.length) extra.push(a("#facets", "Workload facets", String(model.facets.length), "", "facets"));
+  if (model.pools.length) extra.push(a("#pools", "Connection pools", String(model.pools.length), "", "pools"));
+  if (model.diagrams.length) extra.push(a("#flows", "Flows", String(model.diagrams.length), "", "flows"));
   if (extra.length) html += grp("Concerns") + extra.join("");
   html += grp("Domains");
   for (const d of model.domains) {
     const ts = [...model.tables.values()].filter((t) => t.domain === d.id).sort((x, y) => x.fqn.localeCompare(y.fqn));
     if (!ts.length) continue;
-    html += a(`#d-${d.id}`, d.title, String(ts.length));
-    html += ts.map((t) => a(`#${fid(t.fqn)}`, t.name, "", "sub")).join("");
+    html += a(`#d-${d.id}`, d.title, String(ts.length), "", domainIcon(d.id));
+    html += ts.map((t) => a(`#${fid(t.fqn)}`, t.name, "", "sub", "table")).join("");
   }
   if (model.sections.length) {
     html += grp("Notes");
     for (const s of model.sections) {
       const id = "sec-" + String(s.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      html += a(`#${id}`, String(s.title));
+      html += a(`#${id}`, String(s.title), "", "", "notes");
     }
   }
   return html;
