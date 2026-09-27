@@ -1,0 +1,29 @@
+{
+  "name": "db-design",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Database design toolkit: inventory-before-design for live databases (PostgreSQL, MySQL via dump DDL, SQLite, MongoDB), DDL import via the real Postgres grammar (WASM), spec validation, and self-contained interactive HTML design docs with ELK-laid SVG ER diagrams. Zero runtime dependencies in the output.",
+  "license": "MIT",
+  "bin": {
+    "dbd-render": "src/main.mjs",
+    "dbd-validate": "src/tools/validate.mjs",
+    "dbd-inventory": "src/tools/inventory.mjs",
+    "dbd-introspect": "src/tools/introspect.mjs",
+    "dbd-import-ddl": "src/tools/import-ddl.mjs"
+  },
+  "scripts": {
+    "render": "node src/main.mjs",
+    "validate": "node src/tools/validate.mjs",
+    "inventory": "node src/tools/inventory.mjs",
+    "introspect": "node src/tools/introspect.mjs",
+    "import-ddl": "node src/tools/import-ddl.mjs"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@libpg-query/parser": "^17.6.10",
+    "elkjs": "^0.12.0",
+    "js-yaml": "^5.4.2",
+    "mongodb": "^7.6.0",
+    "pg": "^8.23.0"
+  }
+}
