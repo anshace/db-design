@@ -25,7 +25,8 @@ export function figure(title, svg) {
   const tall = m && +m[1] > 1500 ? " tall" : "";
   return `<div class="figure"><div class="bar"><span class="cap">${E(title)}</span>
 <span class="hint">drag pan · ctrl+wheel zoom</span>
-<button data-z="+">+</button><button data-z="-">&#8722;</button><button data-z="0">reset</button></div>
+<button data-z="+">+</button><button data-z="-">&#8722;</button><button data-z="0">reset</button>
+<button data-x="svg" title="Download SVG">svg</button><button data-x="png" title="Download PNG (2x)">png</button></div>
 <div class="canvas${tall}">${svg}</div></div>`;
 }
 
@@ -44,7 +45,11 @@ export function overview(model, { domainGraph, fullEr }) {
   }).join("");
   return `<section id="overview">
 <div class="prov">${metaChips(model)}</div>
-<div class="note"><span class="lab">how to read</span><span>${model.legend ? `<pre class="legend">${E(model.legend)}</pre>` : "Boxes are tables: ● primary key · ◆ foreign key · ○ unique. Double tick = one, crow's foot = many."}</span></div>
+<div class="note"><span class="lab">how to read</span><span>${model.legend ? `<pre class="legend">${E(model.legend)}</pre>` : "Boxes are tables: ● primary key · ◆ foreign key · ○ unique. Double tick = one, crow's foot = many."}</span>
+<div class="tleg"><span><i style="background:var(--tc-str)"></i>text</span><span><i style="background:var(--tc-num)"></i>number</span>
+<span><i style="background:var(--tc-time)"></i>time</span><span><i style="background:var(--tc-json)"></i>json</span>
+<span><i style="background:var(--tc-bool)"></i>bool</span><span><i style="background:var(--tc-id)"></i>uuid</span>
+<span>· type colors apply in diagrams · press <b>/</b> to filter · svg/png buttons export</span></div></div>
 ${domainGraph ? `<h3>Domain relationship graph</h3>${figure("Domains · cross-domain FK counts", domainGraph)}` : ""}
 <h3>Cross-domain relationships</h3>
 <table class="grid"><tr><th>Foreign key</th><th>References</th><th>On delete</th></tr>${rows}</table>

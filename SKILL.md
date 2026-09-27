@@ -85,6 +85,31 @@ DDL preview per domain, prose sections, dark/light via CSS variables (diagrams r
 Open it and look. Unreadable diagram → grouping problem: split the domain or set
 `hide_from_diagram: true`, then re-render.
 
+Every render prints a **delivery receipt** (placeholder-free, zero external requests, every
+table has a card, diagram counts, balanced markup, controls wired). `DELIVER PASS` is the only
+acceptable claim of completion; a FAIL line names exactly what to fix.
+
+Interactive features the output gives readers: sidebar filter (`/` to focus, Enter jumps to the
+first matching card), per-diagram **svg/png export**, entity click → catalog card flash,
+type-colored columns (legend in Overview), dark/light, print stylesheet.
+
+### 4. Interop export (the spec is a hub, not a silo)
+
+```
+node src/tools/export.mjs schema.yaml --dbml out.dbml --mermaid out.mmd --sql out.sql
+```
+
+`--dbml` imports into dbdiagram.io; `--mermaid` pastes into GitHub markdown; `--sql` is the
+consolidated DDL draft.
+
+## Fast authoring path (learned from archify)
+
+Artifact first: for a new design, copy `examples/mini.yaml` to the working spec, reshape it,
+validate, render — do not plan table layouts in prose or hand-place anything (ELK decides).
+One diagnosis per repair round: if the receipt or the browser shows a problem, change the one
+thing it points at (a domain split, a `hide_from_diagram`, a spec typo), re-run, repeat.
+A passing final render freezes the artifact — never hand-edit the HTML afterward; fix the spec.
+
 ## Design docs are more than ERDs
 
 `facets:` (queue/cache/ttl/journal/pubsub/vector/graph/filesystem/external — where, pattern,
@@ -95,8 +120,9 @@ Open it and look. Unreadable diagram → grouping problem: split the domain or s
 
 ```
 src/main.mjs src/model.mjs src/elk.mjs src/svg.mjs src/sections.mjs src/page.mjs src/ddl.mjs
-src/tools/{inventory,introspect,import-ddl,validate}.mjs
-references/schema-dsl.md
+src/exporters.mjs
+src/tools/{inventory,introspect,import-ddl,validate,export}.mjs
+references/schema-dsl.md   examples/mini.yaml
 ```
 
 Diagram geometry lives in `src/elk.mjs` + `src/svg.mjs`; presentation tokens in `src/page.mjs`.

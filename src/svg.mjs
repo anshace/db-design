@@ -13,7 +13,19 @@ function svgOpen(w, h) {
     + `<filter id="sh" x="-20%" y="-20%" width="140%" height="150%">`
     + `<feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="var(--accent)" flood-opacity="0.10"/></filter>`
     + `<style>.edge{stroke:var(--edge);stroke-width:1.35;fill:none}.halo{stroke:var(--bg);stroke-width:3.5;paint-order:stroke}`
+    + `.tc-str{fill:var(--tc-str)}.tc-num{fill:var(--tc-num)}.tc-time{fill:var(--tc-time)}`
+    + `.tc-json{fill:var(--tc-json)}.tc-bool{fill:var(--tc-bool)}.tc-id{fill:var(--tc-id)}`
     + `text{user-select:none}</style></defs>`;
+}
+
+export function typeCat(t) {
+  const x = String(t).toLowerCase();
+  if (/^(bigint|integer|smallint|int|numeric|decimal|real|double|serial)/.test(x)) return "num";
+  if (/timestamp|date|time/.test(x)) return "time";
+  if (/json/.test(x)) return "json";
+  if (/bool/.test(x)) return "bool";
+  if (/uuid|objectid/.test(x)) return "id";
+  return "str";
 }
 
 function cardinal(kind) {
@@ -62,10 +74,10 @@ function edgeSvg(e, kind) {
   return parts.join("");
 }
 
-function entitySvg(model, n) {
+function entitySvg(model, n, idp = "d") {
   const t = model.tables.get(n.id); if (!t) return "";
   const W = n.w, H = n.h;
-  const p = [`<g class="ent" id="t-${esc(t.fqn.replace(/\./g, "-"))}">`];
+  const p = [`<g class="ent" id="${idp}-${esc(t.fqn.replace(/\./g, "-"))}" data-fqn="${esc(t.fqn.toLowerCase())}">`];
   p.push(`<rect x="${n.x}" y="${n.y}" width="${W}" height="${H}" rx="8" fill="var(--surface)" stroke="var(--border)" filter="url(#sh)"/>`);
   p.push(`<rect x="${n.x}" y="${n.y}" width="${W}" height="${HDR}" rx="8" fill="var(--surface2)"/>`);
   p.push(`<rect x="${n.x}" y="${n.y + HDR - 8}" width="${W}" height="8" fill="var(--surface2)"/>`);
@@ -81,7 +93,8 @@ function entitySvg(model, n) {
     if (mark) cells.push(`<text x="${n.x + 9}" y="${ry + 14}" font-size="8.5" fill="${mark[1]}">${mark[0]}</text>`);
     cells.push(`<text x="${n.x + 22}" y="${ry + 14}" font-family="${MONO}" font-size="11" fill="var(--text)">${esc(clip(c.name, 18))}</text>`);
     const right = c.fk ? `${clip(c.fk.split(".").slice(-2)[0] ?? "", 10)} ` : "";
-    cells.push(`<text x="${n.x + W - 10}" y="${ry + 14}" text-anchor="end" font-family="${MONO}" font-size="10" fill="var(--muted)">${esc(right)}${esc(shortType(c.type))}</text>`);
+    cells.push(`<text x="${n.x + W - 10}" y="${ry + 14}" text-anchor="end" font-family="${MONO}" font-size="10" class="tc-${typeCat(c.type)}">`
+      + (right ? `<tspan fill="var(--muted)">${esc(right)}</tspan>` : "") + `${esc(shortType(c.type))}</text>`);
     p.push(cells.join(""));
   });
   if (t.columns.length > 12) {
@@ -92,14 +105,14 @@ function entitySvg(model, n) {
   return p.join("");
 }
 
-export function erSvg(model, layout) {
+export function erSvg(model, layout, idp = "d") {
   if (!layout) return "";
   const { panels, width, height } = layout;
   const body = [];
   for (const pn of panels) {
     body.push(`<rect x="${pn.x}" y="${pn.y}" width="${pn.w}" height="${pn.h}" rx="12" fill="none" stroke="var(--border-soft)" stroke-dasharray="5 4"/>`);
     body.push(`<text x="${pn.x + 10}" y="${pn.y + 22}" font-size="12.5" font-weight="700" fill="var(--accent)">${esc(pn.title)}</text>`);
-    for (const n of pn.nodes.values()) body.push(entitySvg(model, n));
+    for (const n of pn.nodes.values()) body.push(entitySvg(model, n, idp));
     for (const e of pn.edges) {
       const rel = model.relations.find((r) => `${r.src}->${r.dst}:${r.fromFk ? "N:1" : r.kind}` === e.id
         || e.id.startsWith(`${r.src}->${r.dst}`));

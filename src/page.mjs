@@ -23,6 +23,7 @@ ${CSS}
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3 5 8l5 5"/></svg>
     </button>
   </div>
+  <div class="sb-search"><input id="q" type="search" placeholder="filter tables…  ( / )" aria-label="Filter tables"></div>
   <nav class="sb-nav">${nav}</nav>
 </aside>
 <button id="expand" class="expand-btn icon-btn" title="Expand sidebar" aria-label="Expand sidebar" hidden>
@@ -63,6 +64,7 @@ const CSS = `
   --bg:#f6f8fb; --surface:#ffffff; --surface2:#eef2f8; --border:#dbe3ee; --border-soft:#e8edf5;
   --text:#141e2b; --muted:#5a6b82; --accent:#2f6ae0; --accent-soft:#e5eefc; --accent-deep:#1e4fb8;
   --pk:#8a6d00; --fk:#0b6e80; --uk:#5b41c7; --warn:#ad5320; --edge:#7d90a9;
+  --tc-str:#14746f; --tc-num:#a06423; --tc-time:#6b4fbb; --tc-json:#2f6ae0; --tc-bool:#3f7d3f; --tc-id:#8a6d00;
   --r-sm:6px; --r-md:9px; --r-lg:14px;
   --mono:ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,monospace;
   --shadow-sm:0 1px 2px rgba(14,19,26,.06),0 2px 8px rgba(14,19,26,.05);
@@ -73,6 +75,7 @@ const CSS = `
   --bg:#0d141f; --surface:#161f2d; --surface2:#1d2839; --border:#2b3a52; --border-soft:#223047;
   --text:#e2e9f4; --muted:#93a4bc; --accent:#5b9bf8; --accent-soft:#1c2d4d; --accent-deep:#a9c9fb;
   --pk:#d6b94c; --fk:#4cc7dd; --uk:#a78bfa; --warn:#f0925f; --edge:#63799a;
+  --tc-str:#4fd0c2; --tc-num:#e0a35c; --tc-time:#a78bfa; --tc-json:#6ea1f7; --tc-bool:#7ecb7e; --tc-id:#d6b94c;
   --shadow-sm:0 1px 2px rgba(0,0,0,.4);
   --shadow-md:0 2px 6px rgba(0,0,0,.4),0 16px 40px rgba(0,0,0,.35);
 }
@@ -246,6 +249,24 @@ footer{border-top:1px solid var(--border-soft);color:var(--muted);font-size:12px
   display:flex;gap:14px;justify-content:center}
 footer .mono{font-family:var(--mono)}
 
+/* ---------- search, target flash, print ---------- */
+.sb-search{padding:10px 12px 0}
+.sb-search input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:var(--r-sm);padding:6px 10px;font:12.5px var(--mono)}
+.sb-search input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.sb-nav a.dim{display:none}
+.card:target,.fcard:target{animation:flash 1.6s ease-out}
+@keyframes flash{0%,55%{outline:2px solid var(--accent);outline-offset:2px}100%{outline:2px solid transparent}}
+.card.hit{box-shadow:0 0 0 2px var(--accent-soft),var(--shadow-md)}
+.tleg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:8px 0 0}
+.tleg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+@media print{
+  .sb,.expand-btn,header .seg,.figure .bar button,.figure .bar .hint,.sb-search{display:none!important}
+  .shell{margin-left:0}header{position:static}
+  .canvas{max-height:none!important;overflow:visible!important}
+  section{break-inside:avoid;animation:none}
+}
+
 /* ---------- authored entrance motion ---------- */
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 section{animation:rise .5s cubic-bezier(.16,1,.3,1) backwards}
@@ -315,4 +336,57 @@ function setTheme(t){rootEl.dataset.theme=t;localStorage.setItem("dbd-theme",t);
   document.querySelectorAll(".seg-b").forEach(b=>b.classList.toggle("on",b.dataset.th===t));}
 setTheme(localStorage.getItem("dbd-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"));
 document.querySelectorAll(".seg-b").forEach(b=>b.addEventListener("click",()=>setTheme(b.dataset.th)));
+
+// ---- PNG / SVG export per figure (self-contained: inlines current theme tokens) ----
+const TOKENS=["--bg","--surface","--surface2","--border","--border-soft","--text","--muted","--accent",
+  "--accent-soft","--accent-deep","--pk","--fk","--uk","--warn","--edge","--tc-str","--tc-num","--tc-time",
+  "--tc-json","--tc-bool","--tc-id","--mono"];
+function standaloneSvg(svg){
+  const c=svg.cloneNode(true);
+  const g=c.querySelector(".pan"); if(g)g.removeAttribute("transform");
+  c.removeAttribute("style");
+  c.setAttribute("width",svg.getAttribute("width")); c.setAttribute("height",svg.getAttribute("height"));
+  const cs=getComputedStyle(rootEl);
+  const vars=TOKENS.map(t=>t+":"+cs.getPropertyValue(t)).join(";");
+  const st=document.createElementNS("http://www.w3.org/2000/svg","style");
+  st.textContent="svg,"+"root{"+vars+"}";
+  c.insertBefore(st,c.firstChild);
+  return new XMLSerializer().serializeToString(c);
+}
+function download(name,blob){const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+document.querySelectorAll(".figure").forEach(fig=>{
+  const cv=fig.querySelector(".canvas"), svg=cv&&cv.querySelector("svg"); if(!svg)return;
+  const base=(fig.querySelector(".cap")?.textContent||"diagram").trim().toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  fig.querySelector("[data-x='svg']")?.addEventListener("click",()=>
+    download(base+".svg",new Blob([standaloneSvg(svg)],{type:"image/svg+xml"})));
+  fig.querySelector("[data-x='png']")?.addEventListener("click",()=>{
+    const w=+svg.getAttribute("width"),h=+svg.getAttribute("height"),scale=2;
+    const img=new Image();
+    img.onload=()=>{const cn=document.createElement("canvas");cn.width=w*scale;cn.height=h*scale;
+      const cx=cn.getContext("2d");cx.fillStyle=getComputedStyle(rootEl).getPropertyValue("--bg").trim()||"#fff";
+      cx.fillRect(0,0,cn.width,cn.height);cx.drawImage(img,0,0,w*scale,h*scale);
+      cn.toBlob(b=>download(base+".png",b),"image/png");};
+    img.onerror=()=>console.error("png export failed");
+    img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(standaloneSvg(svg));
+  });
+});
+
+// ---- sidebar search: filter tree + highlight cards; "/" focuses, Esc clears ----
+const q=document.getElementById("q");
+function applySearch(){
+  const term=(q.value||"").toLowerCase().trim();
+  document.querySelectorAll(".sb-nav a").forEach(a=>{
+    const hit=!term||a.textContent.toLowerCase().includes(term);
+    a.classList.toggle("dim",!hit);});
+  document.querySelectorAll(".card").forEach(c=>{
+    const hit=term&&c.id.slice(2).replace(/-/g,".").includes(term);
+    c.classList.toggle("hit",!!hit);});
+}
+q?.addEventListener("input",applySearch);
+q?.addEventListener("keydown",e=>{if(e.key==="Enter"){const f=document.querySelector(".card.hit");f?.scrollIntoView({block:"center"});}});
+window.addEventListener("keydown",e=>{
+  if(e.key==="/"&&document.activeElement!==q){e.preventDefault();q?.focus();}
+  if(e.key==="Escape"&&document.activeElement===q){q.value="";applySearch();q.blur();}
+});
 `;

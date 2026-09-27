@@ -1,0 +1,57 @@
+# examples/mini.yaml — smallest complete spec: use as the shape reference when
+# hand-authoring a new design (validate then render exactly as with any real spec).
+project: mini_shop
+engine: PostgreSQL 17
+legend: |
+  ● PK · ◆ FK · ○ unique · double tick = one · crow's foot = many
+domains:
+  - {id: shop, title: Shop, description: Customers and their orders.}
+  - {id: ops, title: Operations, description: Fulfilment queue and temp state.}
+tables:
+  - name: shop.customers
+    note: one row per account
+    columns:
+      - {name: id, type: bigint, pk: true}
+      - {name: email, type: text, nullable: false, unique: true}
+      - {name: created_at, type: timestamptz, default: now()}
+  - name: shop.orders
+    note: append-only; status machine lives in the app
+    columns:
+      - {name: id, type: bigint, pk: true}
+      - {name: customer_id, type: bigint, fk: shop.customers.id, fk_on_delete: cascade}
+      - {name: total, type: numeric, nullable: false}
+      - {name: status, type: text, default: "'open'", enum: [open, paid, shipped]}
+    indexes: ["orders_status_idx (status) WHERE status = 'open'"]
+  - name: ops.jobs
+    note: SKIP LOCKED fulfilment queue
+    columns:
+      - {name: id, type: bigint, pk: true}
+      - {name: order_id, type: bigint, fk: shop.orders.id, fk_on_delete: cascade}
+      - {name: state, type: text, default: "'queued'", enum: [queued, running, done]}
+      - {name: available_at, type: timestamptz, default: now()}
+    indexes: ["jobs_claim_idx (state, available_at) WHERE state = 'queued'"]
+  - name: ops.session_cache
+    note: cross-worker session cache; crash-wipe is fine
+    unlogged: true
+    columns:
+      - {name: key, type: text, pk: true}
+      - {name: value, type: jsonb}
+      - {name: expires_at, type: timestamptz, nullable: false}
+facets:
+  - {id: queue, kind: queue, title: Fulfilment queue, where: ops.jobs,
+     pattern: FOR UPDATE SKIP LOCKED claim; backoff via available_at,
+     failure: claim in a rolled-back txn silently requeues, tables: [ops.jobs]}
+  - {id: cache, kind: cache, title: Session cache, where: ops.session_cache (UNLOGGED),
+     pattern: upsert + lazy expiry on read, tables: [ops.session_cache]}
+pools:
+  - {name: app, durability: durable, sync_commit: "on", pool: "2–10", purpose: OLTP}
+  - {name: queue, durability: durable, sync_commit: "on", pool: "2–6", purpose: claims}
+diagrams:
+  - title: Order flow
+    nodes:
+      - {id: open, label: open, rank: 0}
+      - {id: paid, label: paid, rank: 1}
+      - {id: shipped, label: shipped, rank: 2}
+    edges:
+      - {from: open, to: paid, label: payment}
+      - {from: paid, to: shipped, label: fulfilment job done}

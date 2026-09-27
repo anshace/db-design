@@ -41,7 +41,7 @@ async function main() {
     erSvgs[d.id] = erSvg(model, one);
   }
   const visibleDomains = model.domains.filter((d) => [...model.tables.values()].some((t) => t.domain === d.id && !t.hide)).map((d) => d.id);
-  if (visibleDomains.length > 1) fullEr = erSvg(model, await layoutEr(model, visibleDomains));
+  if (visibleDomains.length > 1) fullEr = erSvg(model, await layoutEr(model, visibleDomains), "f");
 
   let domainGraph = "";
   const dg = domainGraphModel(model);
@@ -71,6 +71,29 @@ async function main() {
   fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
   fs.writeFileSync(out, html);
   console.log(`wrote ${out} (${Math.round(html.length / 1024)} KB) — ${model.tables.size} tables, ${model.domains.length} domains`);
+  receipt(html, model);
+}
+
+// archify-style acceptance: a delivery is only "done" with a green receipt.
+function receipt(html, model) {
+  const doms = model.domains.filter((d) => [...model.tables.values()].some((t) => t.domain === d.id && !t.hide));
+  const wantSvgs = doms.length /* per-domain ERs */ + (doms.length > 1 ? 1 : 0) /* full */
+    + (model.diagrams.filter((d) => d.nodes).length) + (html.includes("Domain relationship graph") ? 1 : 0);
+  const checks = [
+    ["no unfilled placeholders", !/__TITLE__|__META__|__NAV__|__SECTIONS__|__FOOTER__/.test(html)],
+    ["zero external requests", !/https?:\/\/(?!www\.w3\.org)/.test(html)],
+    ["every table has a catalog card", [...model.tables.values()].every((t) => html.includes(`id="t-${t.fqn.replace(/\./g, "-")}"`))],
+    ["diagram count matches layout", (html.match(/<svg /g) ?? []).length >= wantSvgs],
+    ["balanced markup", (html.match(/<section/g) ?? []).length === (html.match(/<\/section>/g) ?? []).length
+      && (html.match(/<div/g) ?? []).length === (html.match(/<\/div>/g) ?? []).length],
+    ["export controls present", html.includes('data-x="svg"') && html.includes('data-x="png"')],
+    ["sidebar search wired", html.includes('id="q"')],
+    ["unique DOM ids", (() => { const ids = [...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]); return new Set(ids).size === ids.length; })()],
+  ];
+  const failed = checks.filter(([, ok]) => !ok);
+  for (const [name, ok] of checks) console.log(`  ${ok ? "PASS" : "FAIL"}  ${name}`);
+  if (failed.length) { console.error(`DELIVER FAIL (${failed.length} checks failed)`); process.exitCode = 1; }
+  else console.log(`DELIVER PASS — ${checks.length} checks, ${wantSvgs} diagrams, ${model.tables.size} cards`);
 }
 
 function domainGraphModel(model) {
