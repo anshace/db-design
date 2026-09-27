@@ -7,10 +7,11 @@ const MONO = "ui-monospace,'Cascadia Code','JetBrains Mono',Consolas,monospace";
 const clip = (s, n) => (String(s).length > n ? String(s).slice(0, n - 1) + "…" : String(s));
 const shortType = (t) => t.split("(")[0];
 
-function svgOpen(w, h) {
+let svgSeq = 0;
+function svgOpen(w, h, fid) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(w)}" height="${Math.ceil(h)}" `
     + `viewBox="0 0 ${Math.ceil(w)} ${Math.ceil(h)}" role="img"><defs>`
-    + `<filter id="sh" x="-20%" y="-20%" width="140%" height="150%">`
+    + `<filter id="${fid}" x="-20%" y="-20%" width="140%" height="150%">`
     + `<feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="var(--accent)" flood-opacity="0.10"/></filter>`
     + `<style>.edge{stroke:var(--edge);stroke-width:1.35;fill:none}.halo{stroke:var(--bg);stroke-width:3.5;paint-order:stroke}`
     + `.tc-str{fill:var(--tc-str)}.tc-num{fill:var(--tc-num)}.tc-time{fill:var(--tc-time)}`
@@ -74,11 +75,11 @@ function edgeSvg(e, kind) {
   return parts.join("");
 }
 
-function entitySvg(model, n, idp = "d") {
+function entitySvg(model, n, idp = "d", fid = "sh") {
   const t = model.tables.get(n.id); if (!t) return "";
   const W = n.w, H = n.h;
   const p = [`<g class="ent" id="${idp}-${esc(t.fqn.replace(/\./g, "-"))}" data-fqn="${esc(t.fqn.toLowerCase())}">`];
-  p.push(`<rect x="${n.x}" y="${n.y}" width="${W}" height="${H}" rx="8" fill="var(--surface)" stroke="var(--border)" filter="url(#sh)"/>`);
+  p.push(`<rect x="${n.x}" y="${n.y}" width="${W}" height="${H}" rx="8" fill="var(--surface)" stroke="var(--border)" filter="url(#${fid})"/>`);
   p.push(`<rect x="${n.x}" y="${n.y}" width="${W}" height="${HDR}" rx="8" fill="var(--surface2)"/>`);
   p.push(`<rect x="${n.x}" y="${n.y + HDR - 8}" width="${W}" height="8" fill="var(--surface2)"/>`);
   p.push(`<line x1="${n.x}" y1="${n.y + HDR}" x2="${n.x + W}" y2="${n.y + HDR}" stroke="var(--border)"/>`);
@@ -107,22 +108,24 @@ function entitySvg(model, n, idp = "d") {
 
 export function erSvg(model, layout, idp = "d") {
   if (!layout) return "";
+  const fid = `sh${++svgSeq}`;
   const { panels, width, height } = layout;
   const body = [];
   for (const pn of panels) {
     body.push(`<rect x="${pn.x}" y="${pn.y}" width="${pn.w}" height="${pn.h}" rx="12" fill="none" stroke="var(--border-soft)" stroke-dasharray="5 4"/>`);
     body.push(`<text x="${pn.x + 10}" y="${pn.y + 22}" font-size="12.5" font-weight="700" fill="var(--accent)">${esc(pn.title)}</text>`);
-    for (const n of pn.nodes.values()) body.push(entitySvg(model, n, idp));
+    for (const n of pn.nodes.values()) body.push(entitySvg(model, n, idp, fid));
     for (const e of pn.edges) {
       const rel = model.relations.find((r) => `${r.src}->${r.dst}:${r.fromFk ? "N:1" : r.kind}` === e.id
         || e.id.startsWith(`${r.src}->${r.dst}`));
       body.push(edgeSvg(e, rel?.kind ?? "N:1"));
     }
   }
-  return `${svgOpen(width, height)}<g class="pan">${body.join("")}</g></svg>`;
+  return `${svgOpen(width, height, fid)}<g class="pan">${body.join("")}</g></svg>`;
 }
 
 export function flowSvg(layout, nodeMeta) {
+  const fid = `sh${++svgSeq}`;
   const { nodes, edges, width, height } = layout;
   const meta = new Map(nodeMeta.map((n) => [String(n.id), n]));
   const body = [];
@@ -138,10 +141,10 @@ export function flowSvg(layout, nodeMeta) {
   }
   for (const n of nodes) {
     const m = meta.get(n.id) ?? {};
-    body.push(`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="9" fill="var(--surface)" stroke="var(--border)" filter="url(#sh)"/>`);
+    body.push(`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="9" fill="var(--surface)" stroke="var(--border)" filter="url(#${fid})"/>`);
     const lines = n.labels?.length ? n.labels : [{ text: m.label ?? n.id }];
     body.push(`<text x="${n.x + n.w / 2}" y="${n.y + 20}" text-anchor="middle" font-size="12" font-weight="650" fill="var(--text)">${esc(clip(lines[0].text ?? m.label ?? n.id, 22))}</text>`);
     if (m.note) body.push(`<text x="${n.x + n.w / 2}" y="${n.y + 38}" text-anchor="middle" font-family="${MONO}" font-size="9" fill="var(--muted)">${esc(clip(m.note, 26))}</text>`);
   }
-  return `${svgOpen(width, height)}<g class="pan">${body.join("")}</g></svg>`;
+  return `${svgOpen(width, height, fid)}<g class="pan">${body.join("")}</g></svg>`;
 }
